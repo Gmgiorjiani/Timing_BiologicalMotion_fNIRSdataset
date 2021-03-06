@@ -5,4 +5,5 @@ Download the complete fNRIS dataset from: https://drive.google.com/file/d/1yWUHo
 
 Follow the fNIRS_DataAnalysis.rproj file for data analysis pipeline
 
-<img width="823" alt="Screenshot 2021-03-06 at 22 32 23" src="https://user-images.githubusercontent.com/32231070/110222677-db70dd80-7ecb-11eb-98b7-686c9de10668.png">
+                <img width="401" alt="Screenshot 2021-03-06 at 22 37 55" src="https://user-images.githubusercontent.com/32231070/110222778-a6b15600-7ecc-11eb-9672-01c8fd88b27c.png">
+
