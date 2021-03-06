@@ -1,0 +1,371 @@
+### fNIRS Data Preproc and Analysis ####
+
+require(pracma)
+n_sub<-14
+n_canais<-43
+n_blocos=11
+dur_bloco<-150
+
+###list of subjects
+sub<-scan("~/Desktop/Oxy/caras.txt", what="string")
+sub_d<-scan("~/Desktop/DeOxy/caras.txt", what="string")
+
+### inputs
+Bio_1<-read.table("~/Desktop/Oxy/Bio_1.txt")
+Bio_2<-read.table("~/Desktop/Oxy/Bio_2.txt")
+Bio_3<-read.table("~/Desktop/Oxy/Bio_3.txt")
+Bio_4<-read.table("~/Desktop/Oxy/Bio_4.txt")
+Bio_5<-read.table("~/Desktop/Oxy/Bio_5.txt")
+N_Bio_1<-read.table("~/Desktop/Oxy/N_Bio_1.txt")
+N_Bio_2<-read.table("~/Desktop/Oxy/N_Bio_2.txt")
+N_Bio_3<-read.table("~/Desktop/Oxy/N_Bio_3.txt")
+N_Bio_4<-read.table("~/Desktop/Oxy/N_Bio_4.txt")
+N_Bio_5<-read.table("~/Desktop/Oxy/N_Bio_5.txt")
+
+##### Attention  ---- We cut off the first 40 frames in order to adjust the filter outputs
+Bio_1<-Bio_1-40
+Bio_2<-Bio_2-40
+Bio_3<-Bio_3-40
+Bio_4<-Bio_4-40
+Bio_5<-Bio_5-40
+
+N_Bio_1<-N_Bio_1-40
+N_Bio_2<-N_Bio_2-40
+N_Bio_3<-N_Bio_3-40
+N_Bio_4<-N_Bio_4-40
+N_Bio_5<-N_Bio_5-40
+
+bio_1<-cbind(Bio_1,Bio_2[2:6])
+bio_2<-cbind(Bio_3,Bio_4[2:6])
+bio_3<-Bio_5
+N_bio_1<-cbind(N_Bio_1,N_Bio_2[2:6])
+N_bio_2<-cbind(N_Bio_3,N_Bio_4[2:6])
+N_bio_3<-N_Bio_5
+
+bio_1<-as.matrix(bio_1)
+bio_2<-as.matrix(bio_2)
+bio_3<-as.matrix(bio_3)
+N_bio_1<-as.matrix(N_bio_1)
+N_bio_2<-as.matrix(N_bio_2)
+N_bio_3<-as.matrix(N_bio_3)
+############################################################
+med_bloco_bio_1<-array(0,c(n_sub,n_canais,dur_bloco))
+med_bloco_bio_2<-array(0,c(n_sub,n_canais,dur_bloco))
+med_bloco_bio_3<-array(0,c(n_sub,n_canais,dur_bloco))
+med_bloco_n_bio_1<-array(0,c(n_sub,n_canais,dur_bloco))
+med_bloco_n_bio_2<-array(0,c(n_sub,n_canais,dur_bloco))
+med_bloco_n_bio_3<-array(0,c(n_sub,n_canais,dur_bloco))
+
+for(s in 1:n_sub){
+		
+a<-read.table(paste("~/Desktop/Oxy/",sub[s],sep=""))
+#b<-read.table(paste("~/Desktop/DeOxy/",sub_d[s],sep=""))
+###### Excluir canais usando a correlaçao ??
+#x<-diag(cor(a,b))
+#x<-as.data.frame(x)
+#print(which(x[1]>0.3))
+    
+for(j in 1:n_canais){
+    a[,j]<-detrend(a[,j], 'linear')
+#b[,j]<-detrend(b[,j], 'linear')
+    ma<-c(1,1,1,1)/4
+    a[,j]<-filter(a[,j],ma)
+#b[,j]<-filter(b[,j],ma)
+    mb<-c(rep(1,80))/80
+    a[,j]<-filter(a[,j],mb)
+#b[,j]<-filter(b[,j],mb)
+}
+
+tamanho<-dim(a)[1]
+data_limpo<-a[41:(tamanho-42),]
+tamanho<-dim(data_limpo)[1]	
+for(can in 1:n_canais){data_limpo[,can]<-(data_limpo[,can]-mean(data_limpo[,can]))/sd(data_limpo[,can])}	
+mean_ts<-array(0,tamanho)
+for(k in 1:tamanho){mean_ts[k]<-sum(data_limpo[k,1:n_canais])/n_canais}	
+data<-matrix(0,tamanho,n_canais)
+for(j in 1:n_canais){data[,j]=lm(data_limpo[,j] ~ mean_ts)$res}
+
+for(canal in 1:n_canais){					   
+	for(i in 1:(dur_bloco)){
+		med_bloco_bio_1[s,canal,i]=mean(data[(bio_1[s,2:n_blocos])-20+i,canal])
+		med_bloco_bio_2[s,canal,i]=mean(data[(bio_2[s,2:n_blocos])-20+i,canal])
+		med_bloco_bio_3[s,canal,i]=mean(data[(bio_3[s,2:(n_blocos/2)])-20+i,canal])
+		med_bloco_n_bio_1[s,canal,i]=mean(data[(N_bio_1[s,2:n_blocos])-20+i,canal])   ### ATENCAO, tira o bloco 1
+		med_bloco_n_bio_2[s,canal,i]=mean(data[(N_bio_2[s,2:n_blocos])-20+i,canal])
+		med_bloco_n_bio_3[s,canal,i]=mean(data[(N_bio_3[s,2:(n_blocos/2)])-20+i,canal])
+	}
+	med_bloco_bio_1[s,canal,]=(med_bloco_bio_1[s,canal,]-(mean(med_bloco_bio_1[s,canal,15:21])))
+	med_bloco_bio_2[s,canal,]=(med_bloco_bio_2[s,canal,]-(mean(med_bloco_bio_2[s,canal,15:21])))
+	med_bloco_bio_3[s,canal,]=(med_bloco_bio_3[s,canal,]-(mean(med_bloco_bio_3[s,canal,15:21])))
+	med_bloco_n_bio_1[s,canal,]=(med_bloco_n_bio_1[s,canal,]-(mean(med_bloco_n_bio_1[s,canal,15:21])))
+	med_bloco_n_bio_2[s,canal,]=(med_bloco_n_bio_2[s,canal,]-(mean(med_bloco_n_bio_2[s,canal,15:21])))
+	med_bloco_n_bio_3[s,canal,]=(med_bloco_n_bio_3[s,canal,]-(mean(med_bloco_n_bio_3[s,canal,15:21])))
+}
+	
+		
+}
+
+
+############
+######## Analysis per channel of interest (10 e 20)
+
+med_bio_1<-array(0,c(dur_bloco,n_canais))
+med_bio_2<-array(0,c(dur_bloco,n_canais))
+med_bio_3<-array(0,c(dur_bloco,n_canais))
+med_n_bio_1<-array(0,c(dur_bloco,n_canais))
+med_n_bio_2<-array(0,c(dur_bloco,n_canais))
+med_n_bio_3<-array(0,c(dur_bloco,n_canais))
+
+sd_bio_1<-array(0,c(dur_bloco,n_canais))
+sd_bio_2<-array(0,c(dur_bloco,n_canais))
+sd_bio_3<-array(0,c(dur_bloco,n_canais))
+sd_n_bio_1<-array(0,c(dur_bloco,n_canais))
+sd_n_bio_2<-array(0,c(dur_bloco,n_canais))
+sd_n_bio_3<-array(0,c(dur_bloco,n_canais))
+
+
+for(canal in 1:n_canais){
+for(i in 1:(dur_bloco)){
+	med_bio_1[i,canal]<-mean(med_bloco_bio_1[1:n_sub,canal,i])
+	med_bio_2[i,canal]<-mean(med_bloco_bio_2[1:n_sub,canal,i])
+	med_bio_3[i,canal]<-mean(med_bloco_bio_3[1:n_sub,canal,i])
+	med_n_bio_1[i,canal]<-mean(med_bloco_n_bio_1[1:n_sub,canal,i])
+	med_n_bio_2[i,canal]<-mean(med_bloco_n_bio_2[1:n_sub,canal,i])
+	med_n_bio_3[i,canal]<-mean(med_bloco_n_bio_3[1:n_sub,canal,i])
+	sd_bio_1[i,canal]<-sd(med_bloco_bio_1[1:n_sub,canal,i])
+	sd_bio_2[i,canal]<-sd(med_bloco_bio_2[1:n_sub,canal,i])
+	sd_bio_3[i,canal]<-sd(med_bloco_bio_3[1:n_sub,canal,i])
+	sd_n_bio_1[i,canal]<-sd(med_bloco_n_bio_1[1:n_sub,canal,i])
+	sd_n_bio_2[i,canal]<-sd(med_bloco_n_bio_2[1:n_sub,canal,i])
+	sd_n_bio_3[i,canal]<-sd(med_bloco_n_bio_3[1:n_sub,canal,i])
+	
+}
+}
+
+for(can in 1:n_canais){
+ts.plot(cbind(med_bio_1[,can],med_bio_2[,can],med_bio_3[,can]),col=c(1,2,3),ylim=c(-0.0001,0.0006))
+abline(v=19)
+abline(v=79)
+abline(h=0)
+	readline(prompt="Press [enter] to continue")
+}
+
+for(can in 1:n_canais){
+	ts.plot(cbind(med_n_bio_1[,can],med_n_bio_2[,can],med_n_bio_3[,can]),col=c(1,2,3),ylim=c(-0.2,0.2))
+	abline(v=19)
+	abline(v=79)
+	abline(h=0)
+	readline(prompt="Press [enter] to continue")
+}
+
+
+####################
+####################
+
+xcoords <- c(seq(from=-(19/3.9), to = (130/3.9), by=0.2564103),33)
+plot(x=c(min(xcoords),max(xcoords)),y=c(-0.4,0.4),
+     type="n",main="Channel 20", xlab="time(s)",ylab="% Change [OxyHb]")
+abline(h=0)
+abline(v=0)
+
+means=med_bio_1[,20]
+maxs=med_bio_1[,20]+(sd_bio_1[,20]/sqrt(17))
+mins=med_bio_1[,20]-(sd_bio_1[,20]/sqrt(17))
+
+rangecolor <- rgb(0,255,0,alpha=80,maxColorValue=255)
+polygon(x=c(xcoords,rev(xcoords)),y=c(maxs,rev(means)),col=rangecolor,border=NA)
+polygon(x=c(xcoords,rev(xcoords)),y=c(mins,rev(means)),col=rangecolor,border=NA)
+
+meancolor <- "green"
+lines(x=xcoords,y=means,col=meancolor)
+
+means=med_bio_2[,20]
+maxs=med_bio_2[,20]+(sd_bio_2[,20]/sqrt(17))
+mins=med_bio_2[,20]-(sd_bio_2[,20]/sqrt(17))
+
+rangecolor <- rgb(30,144,255,alpha=80,maxColorValue=255)
+polygon(x=c(xcoords,rev(xcoords)),y=c(maxs,rev(means)),col=rangecolor,border=NA)
+polygon(x=c(xcoords,rev(xcoords)),y=c(mins,rev(means)),col=rangecolor,border=NA)
+
+meancolor <- "blue"
+lines(x=xcoords,y=means,col=meancolor)
+
+means=med_bio_3[,20]
+maxs=med_bio_3[,20]+(sd_bio_3[,20]/sqrt(17))
+mins=med_bio_3[,20]-(sd_bio_3[,20]/sqrt(17))
+
+rangecolor <- rgb(255,0,0,alpha=80,maxColorValue=255)
+polygon(x=c(xcoords,rev(xcoords)),y=c(maxs,rev(means)),col=rangecolor,border=NA)
+polygon(x=c(xcoords,rev(xcoords)),y=c(mins,rev(means)),col=rangecolor,border=NA)
+
+meancolor <- "red"
+lines(x=xcoords,y=means,col=meancolor)
+
+xcoords <- c(seq(from=-(19/3.9), to = (130/3.9), by=0.2564103),33)
+plot(x=c(min(xcoords),max(xcoords)),y=c(-0.7,0.7),
+     type="n",main="Channel 20", xlab="time(s)",ylab="% Change [OxyHb]")
+abline(h=0)
+abline(v=0)
+
+means=med_n_bio_1[,20]
+maxs=med_n_bio_1[,20]+(sd_n_bio_1[,20]/sqrt(17))
+mins=med_n_bio_1[,20]-(sd_n_bio_1[,20]/sqrt(17))
+
+rangecolor <- rgb(0,255,0,alpha=80,maxColorValue=255)
+polygon(x=c(xcoords,rev(xcoords)),y=c(maxs,rev(means)),col=rangecolor,border=NA)
+polygon(x=c(xcoords,rev(xcoords)),y=c(mins,rev(means)),col=rangecolor,border=NA)
+
+meancolor <- "green"
+lines(x=xcoords,y=means,col=meancolor)
+
+means=med_n_bio_2[,20]
+maxs=med_n_bio_2[,20]+(sd_n_bio_2[,20]/sqrt(17))
+mins=med_n_bio_2[,20]-(sd_n_bio_2[,20]/sqrt(17))
+
+rangecolor <- rgb(30,144,255,alpha=80,maxColorValue=255)
+polygon(x=c(xcoords,rev(xcoords)),y=c(maxs,rev(means)),col=rangecolor,border=NA)
+polygon(x=c(xcoords,rev(xcoords)),y=c(mins,rev(means)),col=rangecolor,border=NA)
+
+meancolor <- "blue"
+lines(x=xcoords,y=means,col=meancolor)
+
+means=med_n_bio_3[,20]
+maxs=med_n_bio_3[,20]+(sd_n_bio_3[,20]/sqrt(17))
+mins=med_n_bio_3[,20]-(sd_n_bio_3[,20]/sqrt(17))
+
+rangecolor <- rgb(255,0,0,alpha=80,maxColorValue=255)
+polygon(x=c(xcoords,rev(xcoords)),y=c(maxs,rev(means)),col=rangecolor,border=NA)
+polygon(x=c(xcoords,rev(xcoords)),y=c(mins,rev(means)),col=rangecolor,border=NA)
+
+meancolor <- "red"
+lines(x=xcoords,y=means,col=meancolor)
+
+xcoords <- c(seq(from=-(19/3.9), to = (130/3.9), by=0.2564103),33)
+plot(x=c(min(xcoords),max(xcoords)),y=c(-0.7,0.7),
+     type="n",main="Channel 10", xlab="time(s)",ylab="% Change [OxyHb]")
+abline(h=0)
+abline(v=0)
+
+means=med_bio_1[,10]
+maxs=med_bio_1[,10]+(sd_bio_1[,10]/sqrt(17))
+mins=med_bio_1[,10]-(sd_bio_1[,10]/sqrt(17))
+
+rangecolor <- rgb(0,255,0,alpha=80,maxColorValue=255)
+polygon(x=c(xcoords,rev(xcoords)),y=c(maxs,rev(means)),col=rangecolor,border=NA)
+polygon(x=c(xcoords,rev(xcoords)),y=c(mins,rev(means)),col=rangecolor,border=NA)
+
+meancolor <- "green"
+lines(x=xcoords,y=means,col=meancolor)
+
+means=med_bio_2[,10]
+maxs=med_bio_2[,10]+(sd_bio_2[,10]/sqrt(17))
+mins=med_bio_2[,10]-(sd_bio_2[,10]/sqrt(17))
+
+rangecolor <- rgb(30,144,255,alpha=80,maxColorValue=255)
+polygon(x=c(xcoords,rev(xcoords)),y=c(maxs,rev(means)),col=rangecolor,border=NA)
+polygon(x=c(xcoords,rev(xcoords)),y=c(mins,rev(means)),col=rangecolor,border=NA)
+
+meancolor <- "blue"
+lines(x=xcoords,y=means,col=meancolor)
+
+means=med_bio_3[,10]
+maxs=med_bio_3[,10]+(sd_bio_3[,10]/sqrt(17))
+mins=med_bio_3[,10]-(sd_bio_3[,10]/sqrt(17))
+
+rangecolor <- rgb(255,0,0,alpha=80,maxColorValue=255)
+polygon(x=c(xcoords,rev(xcoords)),y=c(maxs,rev(means)),col=rangecolor,border=NA)
+polygon(x=c(xcoords,rev(xcoords)),y=c(mins,rev(means)),col=rangecolor,border=NA)
+
+meancolor <- "red"
+lines(x=xcoords,y=means,col=meancolor)
+
+xcoords <- c(seq(from=-(19/3.9), to = (130/3.9), by=0.2564103),33)
+plot(x=c(min(xcoords),max(xcoords)),y=c(-0.7,0.7),
+     type="n",main="Channel 17", xlab="time(s)",ylab="% Change [OxyHb]")
+abline(h=0)
+abline(v=0)
+
+means=med_bio_1[,17]
+maxs=med_bio_1[,17]+(sd_bio_1[,10]/sqrt(17))
+mins=med_bio_1[,17]-(sd_bio_1[,10]/sqrt(17))
+
+rangecolor <- rgb(0,255,0,alpha=80,maxColorValue=255)
+polygon(x=c(xcoords,rev(xcoords)),y=c(maxs,rev(means)),col=rangecolor,border=NA)
+polygon(x=c(xcoords,rev(xcoords)),y=c(mins,rev(means)),col=rangecolor,border=NA)
+
+meancolor <- "green"
+lines(x=xcoords,y=means,col=meancolor)
+
+means=med_bio_2[,10]
+maxs=med_bio_2[,10]+(sd_bio_2[,17]/sqrt(17))
+mins=med_bio_2[,10]-(sd_bio_2[,17]/sqrt(17))
+
+rangecolor <- rgb(30,144,255,alpha=80,maxColorValue=255)
+polygon(x=c(xcoords,rev(xcoords)),y=c(maxs,rev(means)),col=rangecolor,border=NA)
+polygon(x=c(xcoords,rev(xcoords)),y=c(mins,rev(means)),col=rangecolor,border=NA)
+
+meancolor <- "blue"
+lines(x=xcoords,y=means,col=meancolor)
+
+means=med_bio_3[,17]
+maxs=med_bio_3[,17]+(sd_bio_3[,10]/sqrt(17))
+mins=med_bio_3[,17]-(sd_bio_3[,10]/sqrt(17))
+
+rangecolor <- rgb(255,0,0,alpha=80,maxColorValue=255)
+polygon(x=c(xcoords,rev(xcoords)),y=c(maxs,rev(means)),col=rangecolor,border=NA)
+polygon(x=c(xcoords,rev(xcoords)),y=c(mins,rev(means)),col=rangecolor,border=NA)
+
+meancolor <- "red"
+lines(x=xcoords,y=means,col=meancolor)
+
+amp_bio_1<-array(0,n_sub)
+amp_bio_2<-array(0,n_sub)
+amp_bio_3<-array(0,n_sub)
+amp_n_bio_1<-array(0,c(n_sub,n_canais))
+amp_n_bio_2<-array(0,c(n_sub,n_canais))
+amp_n_bio_3<-array(0,c(n_sub,n_canais))
+
+for(s in 1:n_sub){
+amp_bio_1[s]<-max(med_bloco_bio_1[s,20,19:78])
+amp_bio_2[s]<-max(med_bloco_bio_2[s,20,19:78])
+amp_bio_3[s]<-max(med_bloco_bio_3[s,20,19:78])
+	amp_n_bio_1[s]<-max(med_bloco_n_bio_1[s,20,19:78])
+	amp_n_bio_2[s]<-max(med_bloco_n_bio_2[s,20,19:78])
+	amp_n_bio_3[s]<-max(med_bloco_n_bio_3[s,20,19:78])
+}
+
+m_bio_1<-array(0,n_sub)
+m_bio_2<-array(0,n_sub)
+m_bio_3<-array(0,n_sub)
+m_n_bio_1<-array(0,c(n_sub,n_canais))
+m_n_bio_2<-array(0,c(n_sub,n_canais))
+m_n_bio_3<-array(0,c(n_sub,n_canais))
+
+for(s in 1:n_sub){
+	m_bio_1[s]<-mean(med_bloco_bio_1[s,20,19:78])
+	m_bio_2[s]<-mean(med_bloco_bio_2[s,20,19:78])
+	m_bio_3[s]<-mean(med_bloco_bio_3[s,20,19:78])
+	m_n_bio_1[s]<-mean(med_bloco_n_bio_1[s,20,19:78])
+	m_n_bio_2[s]<-mean(med_bloco_n_bio_2[s,20,19:78])
+	m_n_bio_3[s]<-mean(med_bloco_n_bio_3[s,20,19:78])
+}
+
+t.test(m_bio_2,m_n_bio_1)
+t.test(m_bio_2,m_n_bio_2)
+t.test(m_bio_2,m_n_bio_3)
+t.test(m_bio_1,m_bio_2)
+t.test(m_bio_2,m_bio_3)
+t.test(m_bio_1,m_bio_3)
+t.test(m_n_bio_2,m_n_bio_1)
+t.test(m_n_bio_3,m_n_bio_1)
+t.test(m_n_bio_3,m_n_bio_2)
+
+canal=20
+
+for(s in 1:n_sub){
+	ts.plot(cbind(med_bloco_bio_1[s,canal,],med_bloco_bio_2[s,canal,]),col=c(1,2))
+	abline(v=19)
+	abline(v=79)
+	abline(h=0)
+	readline(prompt="Press [enter] to continue")
+}
