@@ -8,7 +8,7 @@ Download the complete fNRIS dataset and check the fNIRS_DataAnalysis.rproj file 
 
 fNIRS Channels configuration
 
-<img width="880" alt="Screenshot 2021-03-08 at 18 05 24" src="https://user-images.githubusercontent.com/32231070/110362207-e72de280-8038-11eb-9900-9b6c4e4a56da.png">
+<img width="580" alt="Screenshot 2021-03-08 at 18 05 24" src="https://user-images.githubusercontent.com/32231070/110362207-e72de280-8038-11eb-9900-9b6c4e4a56da.png">
 
 
 
